@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TECNICO
+  PESQUISADOR
+  GESTOR
+  ADMIN
+}
+
+enum SensorType {
+  TEMPERATURA
+  UMIDADE
+  QUALIDADE_AR
+  QUALIDADE_AGUA
+  PRESENCA_ESPECIE
+  PH
+  TURBIDEZ
+  OXIGENIO_DISSOLVIDO
+}
+
+enum AlertStatus {
+  ACTIVE
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(TECNICO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  alerts Alert[]
+
+  @@map("users")
+}
+
+model Station {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  latitude    Float
+  longitude   Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sensors Sensor[]
+  readings Reading[]
+
+  @@map("stations")
+}
+
+model Sensor {
+  id          String     @id @default(uuid())
+  stationId   String
+  name        String
+  type        SensorType
+  unit        String
+  minValue    Float?
+  maxValue    Float?
+  alertThreshold Float?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  station     Station    @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  readings    Reading[]
+  alerts      Alert[]
+
+  @@map("sensors")
+}
+
+model Reading {
+  id        String   @id @default(uuid())
+  stationId String
+  sensorId  String
+  value     Float
+  timestamp DateTime @default(now())
+
+  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  sensor    Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([sensorId])
+  @@index([timestamp])
+  @@map("readings")
+}
+
+model Alert {
+  id          String      @id @default(uuid())
+  sensorId    String
+  userId      String?
+  message     String
+  value       Float
+  threshold   Float
+  status      AlertStatus @default(ACTIVE)
+  resolvedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  sensor      Sensor      @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([sensorId])
+  @@map("alerts")
+}
